@@ -1,0 +1,154 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  USER
+  RESTAURANT_OWNER
+  DELIVERY_PARTNER
+  ADMIN
+}
+
+enum AuthProvider {
+  LOCAL
+  GOOGLE
+}
+
+enum OrderStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  PREPARING
+  READY_FOR_PICKUP
+  OUT_FOR_DELIVERY
+  DELIVERED
+  CANCELLED
+}
+
+enum PaymentStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  REFUNDED
+}
+
+enum PaymentMethod {
+  RAZORPAY
+  STRIPE
+  CASH_ON_DELIVERY
+}
+
+model User {
+  id           String       @id @default(uuid())
+  name         String
+  email        String       @unique
+  phone        String?      @unique
+  password     String?
+  role         UserRole     @default(USER)
+  provider     AuthProvider @default(LOCAL)
+  googleId     String?      @unique
+  avatar       String?
+  isVerified   Boolean      @default(false)
+  isActive     Boolean      @default(true)
+  refreshToken String?
+
+  addresses       Address[]
+  orders          Order[]
+  deliveryProfile DeliveryPartner?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("users")
+}
+
+model Address {
+  id           String  @id @default(uuid())
+  userId       String
+  user         User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  label        String
+  addressLine1 String
+  addressLine2 String?
+  city         String
+  state        String
+  pincode      String
+  latitude     Float
+  longitude    Float
+  isDefault    Boolean @default(false)
+
+  orders Order[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("addresses")
+}
+
+model Order {
+  id            String        @id @default(uuid())
+  userId        String
+  user          User          @relation(fields: [userId], references: [id])
+  addressId     String
+  address       Address       @relation(fields: [addressId], references: [id])
+  restaurantId  String
+  status        OrderStatus   @default(PENDING)
+  totalAmount   Float
+  deliveryFee   Float         @default(0)
+  otp           String?
+  otpExpiresAt  DateTime?
+  paymentStatus PaymentStatus @default(PENDING)
+  paymentMethod PaymentMethod
+  paymentId     String?
+  cancelReason  String?
+  estimatedTime Int?
+
+  delivery DeliveryAssignment?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("orders")
+}
+
+model DeliveryPartner {
+  id              String  @id @default(uuid())
+  userId          String  @unique
+  user            User    @relation(fields: [userId], references: [id])
+  vehicleType     String
+  vehicleNumber   String
+  isAvailable     Boolean @default(true)
+  isVerified      Boolean @default(false)
+  currentLat      Float?
+  currentLng      Float?
+  totalDeliveries Int     @default(0)
+  rating          Float   @default(0)
+
+  deliveries DeliveryAssignment[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("delivery_partners")
+}
+
+model DeliveryAssignment {
+  id             String          @id @default(uuid())
+  orderId        String          @unique
+  order          Order           @relation(fields: [orderId], references: [id])
+  partnerId      String
+  partner        DeliveryPartner @relation(fields: [partnerId], references: [id])
+  pickedUpAt     DateTime?
+  deliveredAt    DateTime?
+  distanceKm     Float?
+  earningsAmount Float?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("delivery_assignments")
+}
