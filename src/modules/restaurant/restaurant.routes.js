@@ -6,6 +6,7 @@
 import express from "express";
 import * as restaurantController from "./restaurant.controller.js";
 import { protect, authorize } from "../../middlewares/auth.middleware.js";
+import menuRoutes from "./menu/menu.routes.js";
 import {
   restaurantRules,
   toggleStatusRules,
@@ -21,13 +22,6 @@ const router = express.Router();
 // Returns own restaurants + Google Places merged list
 router.get("/nearby", nearbyQueryRules, validate, restaurantController.getNearbyRestaurants);
 
-// @GET /api/restaurants/:id/menu
-// Returns restaurant details + full menu for the customer menu page
-router.get("/:id/menu", restaurantController.getRestaurantWithMenu);
-
-// @GET /api/restaurants/:id
-// Returns single restaurant info
-router.get("/:id", restaurantController.getRestaurant);
 
 // ─── OWNER PROTECTED ROUTES ───────────────────────────────────
 
@@ -35,6 +29,15 @@ router.get("/:id", restaurantController.getRestaurant);
 // Owner sees all their restaurants
 // NOTE: "my" must be before /:id so Express doesn't treat "my" as an id
 router.get("/my", protect, authorize("RESTAURANT_OWNER", "ADMIN"), restaurantController.getMyRestaurants);
+
+
+// @GET /api/restaurants/:id/menu
+// Returns restaurant details + full menu for the customer menu page
+router.get("/:id/menu", restaurantController.getRestaurantWithMenu);
+
+// @GET /api/restaurants/:id
+// Returns single restaurant info
+router.get("/:id", restaurantController.getRestaurant);
 
 // @POST /api/restaurants
 // Create a new restaurant
@@ -87,5 +90,8 @@ router.delete(
   authorize("RESTAURANT_OWNER", "ADMIN"),
   restaurantController.deleteRestaurant
 );
+
+// ─── MOUNT MENU ROUTES ────────────────────────────────────────
+router.use("/:restaurantId/menu", menuRoutes);
 
 export default router; 

@@ -14,13 +14,13 @@ const restaurantSchema = new mongoose.Schema(
         // ─── Basic Info ───────────────────────────────────────────
         name: { type: String, required: true, trim: true, maxlength: 100 },
         description: { type: String, trim: true, maxlength: 500 },
-        image: { type: String },                 // Cloudinary URL
+        coverImage: { type: String },                 // Cloudinary URL
         cuisineTypes: [{ type: String, trim: true }],
-
+        
         // ─── Address ──────────────────────────────────────────────
         address: {
             addressLine1: { type: String, required: true },
-            addressLine2: { type: String },
+            addressLine2: { type: String }, 
             city: { type: String, required: true },
             state: { type: String, required: true },
             pincode: { type: String, required: true },
@@ -51,6 +51,7 @@ const restaurantSchema = new mongoose.Schema(
         totalRatings: { type: Number, default: 0 },
 
         // ─── Status ───────────────────────────────────────────────
+        isOpen: { type: Boolean, default: true },
         isActive: { type: Boolean, default: true },
         isVerified: { type: Boolean, default: false }, // admin-verified
 
