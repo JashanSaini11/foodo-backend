@@ -15,8 +15,7 @@ const verifyOwnership = async (ownerId, restaurantId) => {
     throw { statusCode: 403, message: "Restaurant not found or access denied." };
   }
   return restaurant;
-};
-m     
+};     
 // ─── INVALIDATE MENU CACHE ────────────────────────────────────
 // Called after any menu change so users get fresh data
 const invalidateMenuCache = async (restaurantId) => {

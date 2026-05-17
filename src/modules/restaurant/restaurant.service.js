@@ -159,7 +159,7 @@ export const getNearbyRestaurants = async ({ latitude, longitude, radius = 5 }) 
         $maxDistance: radiusInMeters,
       },
     },
-  }).select("name cuisineTypes coverImage address location rating avgDeliveryTime deliveryFee isOpen minOrderAmount");
+  }).select("name cuisineTypes coverImage address location avgRating avgDeliveryTime deliveryFee isOpen minOrderAmount");
 
   // Format our restaurants to a unified shape
   const formattedOwnRestaurants = ownRestaurants.map((r) => ({
@@ -167,7 +167,7 @@ export const getNearbyRestaurants = async ({ latitude, longitude, radius = 5 }) 
     name: r.name,    
     cuisineTypes: r.cuisineTypes,
     image: r.coverImage,
-    rating: r.rating,
+    rating: r.avgRating,
     avgDeliveryTime: r.avgDeliveryTime,
     deliveryFee: r.deliveryFee,
     minOrderAmount: r.minOrderAmount,
@@ -188,24 +188,33 @@ export const getNearbyRestaurants = async ({ latitude, longitude, radius = 5 }) 
       },
     });
 
-    // Filter out restaurants that are already in our DB (by googlePlaceId)
+    console.log("Google status:", response.data.status); // ← add this
+    console.log("Google results:", response.data.results?.length); // ← add this
+
+    if (response.data.status !== "OK" && response.data.status !== "ZERO_RESULTS") {
+      console.error("Google Places error:", response.data.status, response.data.error_message);
+    }
+
+    // Filter out restaurants already in our DB
     const ownGoogleIds = new Set(
-      (await Restaurant.find({ isVerified: true }).select("googlePlaceId").lean())
+      (await Restaurant.find({ isVerified: true })
+        .select("googlePlaceId")
+        .lean())
         .map((r) => r.googlePlaceId)
         .filter(Boolean)
     );
 
-    googleRestaurants = response.data.results
+    googleRestaurants = (response.data.results || [])
       .filter((place) => !ownGoogleIds.has(place.place_id))
       .map((place) => ({
         id: place.place_id,
         name: place.name,
-        cuisineTypes: ["Restaurant"], // Google doesn't give cuisines in nearby
+        cuisineTypes: ["Restaurant"],
         image: place.photos?.[0]
           ? `https://maps.googleapis.com/maps/api/place/photo?maxwidth=800&photo_reference=${place.photos[0].photo_reference}&key=${process.env.GOOGLE_MAPS_API_KEY}`
           : null,
         rating: place.rating || 0,
-        avgDeliveryTime: null, // not available from Google
+        avgDeliveryTime: null,
         deliveryFee: null,
         minOrderAmount: null,
         isOpen: place.opening_hours?.open_now ?? null,
@@ -213,8 +222,7 @@ export const getNearbyRestaurants = async ({ latitude, longitude, radius = 5 }) 
         source: "google",
       }));
   } catch (err) {
-    // If Google API fails, just return our own restaurants (don't crash)
-    console.warn("Google Places API error:", err.message);
+    console.error("Google Places FULL Error:", err.response?.data || err.message);
   }
 
   const result = {
