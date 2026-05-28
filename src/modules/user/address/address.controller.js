@@ -90,7 +90,7 @@ export const setDefaultAddress = async (req, res) => {
 export const getAddressFromPincode = async (req, res) => {
     try {
         const { pincode } = req.query;
-        const address = await addressService.getAddressFromPincode(pincode);
+        const address = await addressService.getAddressFromPincode(req.user.id, pincode);
         return successResponse(res, {
             statusCode: 200,
             message: "Address fetched from pincode.",
