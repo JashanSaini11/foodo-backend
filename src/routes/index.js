@@ -9,9 +9,11 @@ import userRoutes from "../modules/user/user.routes.js"
 import addressRoutes from "../modules/user/address/address.routes.js";
 import restaurantRoutes from "../modules/restaurant/restaurant.routes.js";
 import cartRoutes from "../modules/order/cart/cart.routes.js";
+import orderRoutes from "../modules/order/order.routes.js";
+import paymentRoutes from "../modules/order/payment/payment.route.js";
 
-// Future modules (uncomment as you build them):
-// import orderRoutes from "../modules/order/order.routes.js";
+
+
 // import deliveryRoutes from "../modules/delivery/delivery.routes.js";
 
 const router = express.Router();
@@ -22,9 +24,10 @@ router.use("/auth", authRoutes);
 router.use("/users", userRoutes)
 router.use("/users/addresses", addressRoutes);
 router.use("/restaurants", restaurantRoutes);
-router.use("/cart", cartRoutes);    
+router.use("/cart", cartRoutes);
+router.use("/orders", orderRoutes);
+router.use("/payments", paymentRoutes);
 
-// router.use("/orders", orderRoutes);
 // router.use("/delivery", deliveryRoutes);
 
 export default router;

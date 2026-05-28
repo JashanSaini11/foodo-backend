@@ -10,6 +10,8 @@ import morgan from "morgan";
 import cookieParser from "cookie-parser";
 import passport from "./config/passport.js";
 import routes from "./routes/index.js";
+import swaggerUi from "swagger-ui-express";
+import { swaggerSpec } from "./config/swagger.js";
 import { errorHandler, notFound } from "./middlewares/error.middleware.js";
 
 const app = express();
@@ -55,6 +57,12 @@ app.get("/health", (req, res) => {
     environment: process.env.NODE_ENV,
   });
 });
+
+// ─── SWAGGER DOCS ─────────────────────────────────────────────
+app.use("/api/docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
+  customSiteTitle: "Foodo API Docs",
+  customCss: ".swagger-ui .topbar { background-color: #e65c00; }",
+}));
 
 // ─── API ROUTES ───────────────────────────────────────────────
 app.use("/api", routes);

@@ -140,7 +140,7 @@ export const setDefaultAddress = async (userId, addressId) => {
 // ─── PINCODE TO ADDRESS (Google Geocoding) ────────────────────
 // Converts a pincode into full address with lat/lng
 // Used when user types pincode instead of using GPS
-export const getAddressFromPincode = async (pincode) => {
+export const getAddressFromPincode = async (userId, pincode) => {
     try {
         const response = await googleMapsClient.geocode({
             params: {
@@ -166,16 +166,49 @@ export const getAddressFromPincode = async (pincode) => {
             return comp ? comp.long_name : "";
         };
 
-        return {
-            formattedAddress: result.formatted_address,
-            latitude: result.geometry.location.lat,
-            longitude: result.geometry.location.lng,
-            city:
-                getComponent("locality") ||
-                getComponent("administrative_area_level_2"),
-            state: getComponent("administrative_area_level_1"),
-            pincode: getComponent("postal_code") || pincode,
-        };
+        const city = getComponent("locality") || getComponent("administrative_area_level_2");
+        const state = getComponent("administrative_area_level_1");
+        const resolvedPincode = getComponent("postal_code") || pincode;
+        const latitude = result.geometry.location.lat;
+        const longitude = result.geometry.location.lng;
+        const addressLine1 = result.formatted_address;
+
+        // Check if user already has an address with this pincode and addressLine1
+        const existingAddress = await prisma.address.findFirst({
+            where: {
+                userId,
+                pincode: resolvedPincode,
+                addressLine1,
+            },
+        });
+
+        if (existingAddress) {
+            return existingAddress;
+        }
+
+        // Check how many addresses user already has
+        const existingCount = await prisma.address.count({
+            where: { userId },
+        });
+
+        // If this is their first address → make it default automatically
+        const isDefault = existingCount === 0;
+
+        const address = await prisma.address.create({
+            data: {
+                userId,
+                label: "Other", // default label
+                addressLine1,
+                city,
+                state,
+                pincode: resolvedPincode,
+                latitude,
+                longitude,
+                isDefault,
+            },
+        });
+
+        return address;
     } catch (err) {
         // If it's our custom error, rethrow it
         console.log("Google Maps Error:", err);

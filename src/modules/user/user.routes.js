@@ -15,11 +15,47 @@ const router = express.Router();
 
 // @GET  /api/users/profile
 // Returns full profile of logged in user
+/**
+ * @swagger
+ * /api/users/profile:
+ *   get:
+ *     summary: Get user profile
+ *     tags: [Users]
+ *     security:
+ *       - cookieAuth: []
+ *     responses:
+ *       200:
+ *         description: Profile fetched successfully
+ *       401:
+ *         description: Not authenticated
+ */
 router.get("/profile", protect, userController.getProfile);
 
 // @PUT  /api/users/profile
 // Updates name and/or phone
 // Body: { name?, phone? }
+/**
+ * @swagger
+ * /api/users/profile:
+ *   put:
+ *     summary: Update user profile
+ *     tags: [Users]
+ *     security:
+ *       - cookieAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/UpdateProfileRequest'
+ *     responses:
+ *       200:
+ *         description: Profile updated successfully
+ *       400:
+ *         description: Invalid input details
+ *       401:
+ *         description: Not authenticated
+ */
 router.put(
   "/profile",
   protect,
@@ -31,6 +67,33 @@ router.put(
 // @POST /api/users/profile/avatar
 // Uploads profile photo to Cloudinary
 // Form data: avatar (image file, max 2MB)
+/**
+ * @swagger
+ * /api/users/profile/avatar:
+ *   post:
+ *     summary: Upload profile avatar
+ *     tags: [Users]
+ *     security:
+ *       - cookieAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               avatar:
+ *                 type: string
+ *                 format: binary
+ *                 description: Image file to upload (max 2MB)
+ *     responses:
+ *       200:
+ *         description: Avatar uploaded successfully
+ *       400:
+ *         description: No file uploaded or invalid file format
+ *       401:
+ *         description: Not authenticated
+ */
 router.post("/profile/avatar", protect, userController.updateAvatar);
 
 export default router;
