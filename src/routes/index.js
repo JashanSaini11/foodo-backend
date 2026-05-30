@@ -11,10 +11,10 @@ import restaurantRoutes from "../modules/restaurant/restaurant.routes.js";
 import cartRoutes from "../modules/order/cart/cart.routes.js";
 import orderRoutes from "../modules/order/order.routes.js";
 import paymentRoutes from "../modules/order/payment/payment.route.js";
+import deliveryRoutes from "../modules/delivery/delivery.routes.js";
 
 
 
-// import deliveryRoutes from "../modules/delivery/delivery.routes.js";
 
 const router = express.Router();
 
@@ -27,7 +27,7 @@ router.use("/restaurants", restaurantRoutes);
 router.use("/cart", cartRoutes);
 router.use("/orders", orderRoutes);
 router.use("/payments", paymentRoutes);
+router.use("/delivery", deliveryRoutes);
 
-// router.use("/delivery", deliveryRoutes);
 
 export default router;

@@ -6,11 +6,11 @@ import jwt from "jsonwebtoken";
 import { setCache, getCache, deleteCache, TTL } from "../config/redis.js";
 
 // ─── GENERATE ACCESS TOKEN ────────────────────────────────────
-// Short-lived token (15min) sent with every API request
+// Short-lived token (1 hour) sent with every API request
 // Contains: userId, email, role
 export const generateAccessToken = (payload) => {
   return jwt.sign(payload, process.env.JWT_ACCESS_SECRET, {
-    expiresIn: process.env.JWT_ACCESS_EXPIRES_IN || "15m",
+    expiresIn: process.env.JWT_ACCESS_EXPIRES_IN || "1h",
   });
 };
 

@@ -9,12 +9,12 @@ import { blacklistAccessToken } from "../../utils/jwt.js";
 
 // ─── COOKIE CONFIGS ───────────────────────────────────────────
 
-// Access token cookie — short lived (15 minutes)
+// Access token cookie — short lived (1 hour)
 const accessTokenCookieOptions = {
   httpOnly: true, 
   secure: process.env.NODE_ENV === "production", 
   sameSite: "strict",
-  maxAge: 15 * 60 * 1000, // 15 minutes in ms
+  maxAge: 60 * 60 * 1000, // 1 hour in ms
 };
 
 // Refresh token cookie — long lived (7 days)
