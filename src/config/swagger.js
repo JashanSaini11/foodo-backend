@@ -246,13 +246,7 @@ const options = {
     // ─── WHERE TO FIND JSDoc COMMENTS ────────────────────────────
     // Swagger scans these files for @swagger comments
     apis: [
-        "./src/modules/auth/auth.routes.js",
-        "./src/modules/user/user.routes.js",
-        "./src/modules/user/address/address.routes.js",
-        "./src/modules/restaurant/restaurant.routes.js",
-        "./src/modules/restaurant/menu/menu.routes.js",
-        "./src/modules/order/cart/cart.routes.js",
-        "./src/modules/order/order.routes.js",
+        "./src/modules/**/*.js",
     ],
 };
 
