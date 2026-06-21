@@ -50,8 +50,7 @@ export const signup = async ({ name, email, password, phone }) => {
   // Generate OTP → store in Redis for 5 minutes → email it
   const otp = generateOTP();
   await setCache(`otp:${email}`, otp, TTL.OTP);
-  // await sendOTPEmail(email, otp);  temp comment for testing without email service
-  console.log(`OTP for ${email}: ${otp}`); // Log OTP for testing
+  await sendOTPEmail(email, otp);  
 
   return {
     message: "Account created! Please check your email for the OTP.",
