@@ -166,53 +166,69 @@ export const getAddressFromPincode = async (userId, pincode) => {
             return comp ? comp.long_name : "";
         };
 
-        const city = getComponent("locality") || getComponent("administrative_area_level_2");
-        const state = getComponent("administrative_area_level_1");
-        const resolvedPincode = getComponent("postal_code") || pincode;
-        const latitude = result.geometry.location.lat;
-        const longitude = result.geometry.location.lng;
-        const addressLine1 = result.formatted_address;
-
-        // Check if user already has an address with this pincode and addressLine1
-        const existingAddress = await prisma.address.findFirst({
-            where: {
-                userId,
-                pincode: resolvedPincode,
-                addressLine1,
-            },
-        });
-
-        if (existingAddress) {
-            return existingAddress;
-        }
-
-        // Check how many addresses user already has
-        const existingCount = await prisma.address.count({
-            where: { userId },
-        });
-
-        // If this is their first address → make it default automatically
-        const isDefault = existingCount === 0;
-
-        const address = await prisma.address.create({
-            data: {
-                userId,
-                label: "Other", // default label
-                addressLine1,
-                city,
-                state,
-                pincode: resolvedPincode,
-                latitude,
-                longitude,
-                isDefault,
-            },
-        });
-
-        return address;
+        return {
+            formattedAddress: result.formatted_address,
+            city: getComponent("locality") || getComponent("administrative_area_level_2"),
+            state: getComponent("administrative_area_level_1"),
+            pincode: getComponent("postal_code") || pincode,
+            latitude: result.geometry.location.lat,
+            longitude: result.geometry.location.lng,
+        };
     } catch (err) {
         // If it's our custom error, rethrow it
         console.log("Google Maps Error:", err);
         if (err.statusCode) throw err;
         throw { statusCode: 500, message: "Failed to fetch address from pincode." };
+    }
+};
+
+// ─── COORDINATES TO ADDRESS (Reverse Geocoding) ───────────────
+export const getAddressFromCoordinates = async (latitude, longitude) => {
+    try {
+        const response = await googleMapsClient.reverseGeocode({
+            params: {
+                latlng: {
+                    lat: parseFloat(latitude),
+                    lng: parseFloat(longitude),
+                },
+                key: process.env.GOOGLE_MAPS_API_KEY,
+            },
+        });
+
+        const results = response.data.results;
+        if (!results || results.length === 0) {
+            throw { statusCode: 404, message: "No address found for these coordinates." };
+        }
+
+        const result = results[0];
+        const components = result.address_components;
+
+        const getComponent = (type) => {
+            const comp = components.find((c) => c.types.includes(type));
+            return comp ? comp.long_name : "";
+        };
+
+        const streetNumber = getComponent("street_number");
+        const route = getComponent("route");
+        const sublocality = getComponent("sublocality_level_1") || getComponent("sublocality");
+
+        const addressLine1 =
+            [streetNumber, route].filter(Boolean).join(" ") ||
+            sublocality ||
+            result.formatted_address.split(",")[0];
+
+        return {
+            formattedAddress: result.formatted_address,
+            addressLine1,
+            city: getComponent("locality") || getComponent("administrative_area_level_2"),
+            state: getComponent("administrative_area_level_1"),
+            pincode: getComponent("postal_code"),
+            latitude: parseFloat(latitude),
+            longitude: parseFloat(longitude),
+        };
+    } catch (err) {
+        console.error("Reverse Geocode Error:", err);
+        if (err.statusCode) throw err;
+        throw { statusCode: 500, message: "Failed to fetch address from coordinates." };
     }
 };

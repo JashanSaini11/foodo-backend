@@ -100,3 +100,19 @@ export const getAddressFromPincode = async (req, res) => {
         return errorResponse(res, { statusCode: err.statusCode || 500, message: err.message });
     }
 };
+
+// ─── GET ADDRESS FROM COORDINATES ────────────────────────────
+// GET /api/users/addresses/from-coordinates?lat=30.90&lng=75.83
+export const getAddressFromCoordinates = async (req, res) => {
+    try {
+        const { lat, lng } = req.query;
+        const address = await addressService.getAddressFromCoordinates(lat, lng);
+        return successResponse(res, {
+            statusCode: 200,
+            message: "Address fetched from coordinates.",
+            data: { address },
+        });
+    } catch (err) {
+        return errorResponse(res, { statusCode: err.statusCode || 500, message: err.message });
+    }
+};
