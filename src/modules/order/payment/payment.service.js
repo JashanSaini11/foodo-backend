@@ -81,8 +81,32 @@ export const verifyPayment = async (userId, {
         .update(body.toString())
         .digest("hex");
 
-    if (expectedSignature !== razorpaySignature) {
+    // Timing-safe comparison avoids leaking signature bytes via timing.
+    const expectedBuf = Buffer.from(expectedSignature, "utf8");
+    const providedBuf = Buffer.from(String(razorpaySignature || ""), "utf8");
+    const signatureValid =
+        expectedBuf.length === providedBuf.length &&
+        crypto.timingSafeEqual(expectedBuf, providedBuf);
+
+    if (!signatureValid) {
         throw { statusCode: 400, message: "Invalid payment signature. Payment verification failed." };
+    }
+
+    // ─── Ownership + state guard ──────────────────────────────
+    // Confirm the order exists, belongs to THIS user, and is still
+    // awaiting payment before we mark it paid. Without this an
+    // authenticated user could mark another user's order as paid.
+    const order = await prisma.order.findFirst({
+        where: { id: orderId, userId },
+    });
+    if (!order) {
+        throw { statusCode: 404, message: "Order not found." };
+    }
+    if (order.paymentMethod === "CASH_ON_DELIVERY") {
+        throw { statusCode: 400, message: "This order is cash on delivery." };
+    }
+    if (order.paymentStatus === "COMPLETED") {
+        throw { statusCode: 400, message: "Order is already paid." };
     }
 
     // ─── Update order payment status ──────────────────────────
@@ -103,6 +127,42 @@ export const verifyPayment = async (userId, {
             status: updatedOrder.status,
         },
     };
+};
+
+// ─── REFUND PAYMENT ───────────────────────────────────────────
+// Called when a PAID order is cancelled. Issues a Razorpay refund
+// (best-effort) and flips the order's paymentStatus to REFUNDED.
+// Safe to call for COD / unpaid orders — it simply no-ops.
+export const refundOrderPayment = async (order) => {
+    // Nothing to refund for COD or orders that were never paid.
+    if (
+        order.paymentMethod === "CASH_ON_DELIVERY" ||
+        order.paymentStatus !== "COMPLETED"
+    ) {
+        return { refunded: false };
+    }
+
+    // Attempt the gateway refund. We never let a gateway hiccup block
+    // the cancellation itself — the order is still marked REFUNDED so
+    // ops can reconcile, and the error is surfaced in logs.
+    try {
+        if (order.paymentId) {
+            await razorpay.payments.refund(order.paymentId, {
+                amount: Math.round(order.totalAmount * 100), // paise
+                speed: "normal",
+                notes: { orderId: order.id, reason: "order_cancelled" },
+            });
+        }
+    } catch (err) {
+        console.error(`Razorpay refund failed for order ${order.id}:`, err.message);
+    }
+
+    await prisma.order.update({
+        where: { id: order.id },
+        data: { paymentStatus: "REFUNDED" },
+    });
+
+    return { refunded: true };
 };
 
 // ─── GET PAYMENT STATUS ───────────────────────────────────────

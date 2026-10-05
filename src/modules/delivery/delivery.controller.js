@@ -118,6 +118,25 @@ export const acceptDelivery = async (req, res) => {
     }
 };
 
+// ─── ARRIVE AT CUSTOMER ───────────────────────────────────────
+// POST /api/delivery/orders/:orderId/arrive
+// Partner reached the door → generate OTP and push it to the customer
+export const arriveAtCustomer = async (req, res) => {
+    try {
+        const result = await deliveryService.arriveAtCustomer(
+            req.user.id,
+            req.params.orderId
+        );
+        return successResponse(res, {
+            statusCode: 200,
+            message: result.message,
+            data: { expiresInMinutes: result.expiresInMinutes },
+        });
+    } catch (err) {
+        return errorResponse(res, { statusCode: err.statusCode || 500, message: err.message });
+    }
+};
+
 // ─── REJECT DELIVERY ──────────────────────────────────────────
 // POST /api/delivery/requests/:orderId/reject
 export const rejectDelivery = async (req, res) => {

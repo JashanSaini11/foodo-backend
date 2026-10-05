@@ -317,6 +317,44 @@ router.post(
 
 /**
  * @swagger
+ * /api/delivery/orders/{orderId}/arrive:
+ *   post:
+ *     summary: Mark arrival at customer and send them the delivery OTP
+ *     description: >
+ *       Partner taps this on reaching the customer's door. Generates a
+ *       short-lived (10 min) OTP, stores it on the order, and pushes it to
+ *       the customer in real-time via Socket.io (event "delivery_otp"). The
+ *       OTP is never returned to the partner. The customer reads it out and
+ *       the partner submits it via POST /api/orders/{id}/verify-otp.
+ *     tags: [Delivery]
+ *     security:
+ *       - cookieAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: orderId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Order ID
+ *     responses:
+ *       200:
+ *         description: OTP generated and sent to the customer
+ *       401:
+ *         description: Not authenticated
+ *       403:
+ *         description: Access denied
+ *       404:
+ *         description: Active delivery not found for this order
+ */
+router.post(
+  "/orders/:orderId/arrive",
+  protect,
+  authorize("DELIVERY_PARTNER", "ADMIN"),
+  deliveryController.arriveAtCustomer
+);
+
+/**
+ * @swagger
  * /api/delivery/requests/{orderId}/reject:
  *   post:
  *     summary: Reject a delivery request

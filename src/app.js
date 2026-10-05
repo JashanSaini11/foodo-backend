@@ -8,6 +8,7 @@ import cors from "cors";
 import helmet from "helmet";
 import morgan from "morgan";
 import cookieParser from "cookie-parser";
+import rateLimit from "express-rate-limit";
 import passport from "./config/passport.js";
 import routes from "./routes/index.js";
 import swaggerUi from "swagger-ui-express";
@@ -16,9 +17,31 @@ import { errorHandler, notFound } from "./middlewares/error.middleware.js";
 
 const app = express();
 
+// ─── TRUST PROXY ──────────────────────────────────────────────
+// Behind a reverse proxy / load balancer (Nginx, Render, Railway,
+// GHCR-deployed container, etc.) the real client IP arrives in the
+// X-Forwarded-* headers. Trusting the proxy makes express-rate-limit
+// key on the real IP and lets `secure` cookies work over TLS
+// terminated at the proxy.
+app.set("trust proxy", 1);
+
 // ─── SECURITY MIDDLEWARE ──────────────────────────────────────
 // helmet → sets secure HTTP headers (prevents common attacks)
 app.use(helmet());
+
+// ─── GLOBAL RATE LIMITER ──────────────────────────────────────
+// A coarse safety net across the whole API (per-route limiters on
+// auth endpoints are stricter). NOTE: this uses an in-memory store,
+// which is per-instance — see docs/PRODUCTION_AUDIT.md for the
+// shared-store (Redis) upgrade needed when running >1 instance.
+const globalLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 300, // requests per window per IP
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, message: "Too many requests. Please slow down." },
+});
+app.use("/api", globalLimiter);
 
 // cors → allows requests from your Next.js frontend
 app.use(

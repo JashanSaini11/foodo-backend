@@ -132,4 +132,12 @@ export const notifyPartner = (partnerId, delivery) => {
     }
 };
 
+// Push the delivery OTP to the customer in real-time once the partner
+// has arrived at the door. The customer reads it out to the partner.
+export const notifyDeliveryOTP = (userId, orderId, otp) => {
+    if (io) {
+        io.to(`user:${userId}`).emit("delivery_otp", { orderId, otp });
+    }
+};
+
 export const getIO = () => io;
