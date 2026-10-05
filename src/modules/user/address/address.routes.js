@@ -5,7 +5,7 @@
 import express from "express";
 import * as addressController from "./address.controller.js";
 import { protect } from "../../../middlewares/auth.middleware.js";
-import { addressRules, pincodeRules, validate } from "./address.validation.js";
+import { addressRules, pincodeRules, coordinateRules, validate } from "./address.validation.js";
 
 const router = express.Router();
 
@@ -40,6 +40,16 @@ const router = express.Router();
  *         description: Not authenticated
  */
 router.get("/from-pincode", protect, pincodeRules, validate, addressController.getAddressFromPincode);
+
+// @GET /api/users/addresses/from-coordinates?lat=30.90&lng=75.83
+// Converts coordinates to address using Google Maps
+router.get(
+    "/from-coordinates",
+    protect,
+    coordinateRules,
+    validate,
+    addressController.getAddressFromCoordinates
+);
 
 // @POST /api/users/addresses
 // Adds a new address for logged in user

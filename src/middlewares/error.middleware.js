@@ -38,9 +38,21 @@ export const errorHandler = (err, req, res, next) => {
   }
 
   // ─── Default Error ────────────────────────────────────────
-  return res.status(err.statusCode || 500).json({
+  const statusCode = err.statusCode || 500;
+
+  // Never leak internal error details for unexpected 500s in
+  // production — those messages can expose stack/DB internals.
+  // Deliberate operational errors (4xx we threw ourselves) keep
+  // their human-friendly message.
+  const isServerError = statusCode >= 500;
+  const exposeMessage =
+    !isServerError || process.env.NODE_ENV !== "production";
+
+  return res.status(statusCode).json({
     success: false,
-    message: err.message || "Something went wrong. Please try again.",
+    message: exposeMessage
+      ? err.message || "Something went wrong. Please try again."
+      : "Something went wrong. Please try again.",
   });
 };
 

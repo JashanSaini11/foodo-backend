@@ -52,6 +52,19 @@ const startServer = async () => {
     process.on("SIGTERM", () => shutdown("SIGTERM"));
     process.on("SIGINT", () => shutdown("SIGINT"));
 
+    // ─── Crash safety nets ────────────────────────────────────
+    // Log and exit cleanly rather than leaving the process in an
+    // undefined state. A process manager (Docker restart policy,
+    // PM2, k8s) is expected to restart us.
+    process.on("unhandledRejection", (reason) => {
+      console.error("❌ Unhandled promise rejection:", reason);
+      shutdown("unhandledRejection");
+    });
+    process.on("uncaughtException", (error) => {
+      console.error("❌ Uncaught exception:", error);
+      shutdown("uncaughtException");
+    });
+
   } catch (error) {
     console.error("❌ Failed to start server:", error.message);
     process.exit(1);

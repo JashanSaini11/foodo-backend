@@ -31,7 +31,7 @@ export const signupRules = [
     .withMessage("Password must have uppercase, lowercase and a number"),
 
   body("phone")
-    .optional()
+    .optional({ nullable: true, checkFalsy: true })
     .isMobilePhone("en-IN")
     .withMessage("Please enter a valid Indian phone number"),
 ];

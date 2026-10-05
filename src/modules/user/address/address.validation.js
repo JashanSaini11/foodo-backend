@@ -52,6 +52,17 @@ export const pincodeRules = [
         .matches(/^[1-9][0-9]{5}$/).withMessage("Please enter a valid 6-digit pincode"),
 ];
 
+// ─── COORDINATE QUERY RULE ────────────────────────────────────
+export const coordinateRules = [
+    query("lat")
+        .notEmpty().withMessage("Latitude is required")
+        .isFloat({ min: -90, max: 90 }).withMessage("Invalid latitude"),
+
+    query("lng")
+        .notEmpty().withMessage("Longitude is required")
+        .isFloat({ min: -180, max: 180 }).withMessage("Invalid longitude"),
+];
+
 // ─── VALIDATION RESULT CHECKER ────────────────────────────────
 export const validate = (req, res, next) => {
     const errors = validationResult(req);

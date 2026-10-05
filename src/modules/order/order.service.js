@@ -5,13 +5,9 @@
 
 import { prisma } from "../../config/db.js";
 import { getCart, clearCart } from "./cart/cart.service.js";
+import { refundOrderPayment } from "./payment/payment.service.js";
 import Restaurant from "../restaurant/restaurant.model.js";
 import { FoodItem } from "../restaurant/menu/menu.model.js";
-
-// ─── HELPER: Generate 4-digit delivery OTP ────────────────────
-// Used to verify delivery — partner enters OTP when delivering
-const generateDeliveryOTP = () =>
-    Math.floor(1000 + Math.random() * 9000).toString();
 
 // ─── PLACE ORDER ──────────────────────────────────────────────
 // Flow:
@@ -55,11 +51,12 @@ export const placeOrder = async (userId, { addressId, paymentMethod, specialInst
         };
     }
 
-    // ─── Step 5: Generate delivery OTP ────────────────────────
-    const deliveryOTP = generateDeliveryOTP();
-    const otpExpiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
-
-    // ─── Step 6: Create order in PostgreSQL ───────────────────
+    // ─── Step 5: Create order in PostgreSQL ───────────────────
+    // NOTE: the delivery OTP is intentionally NOT generated here.
+    // It is generated at dispatch time (when a partner accepts the
+    // delivery) so that its short expiry window is measured from the
+    // moment the order actually goes out for delivery — not from
+    // placement, which can be 30+ minutes earlier.
     const order = await prisma.order.create({
         data: {
             userId,
@@ -68,10 +65,8 @@ export const placeOrder = async (userId, { addressId, paymentMethod, specialInst
             totalAmount: cart.totalAmount,
             deliveryFee: cart.deliveryFee,
             paymentMethod,
-            paymentStatus: paymentMethod === "CASH_ON_DELIVERY" ? "PENDING" : "PENDING",
+            paymentStatus: "PENDING",
             status: "PENDING",
-            otp: deliveryOTP,
-            otpExpiresAt,
             estimatedTime: restaurant.avgDeliveryTime,
         },
         include: {
@@ -79,7 +74,7 @@ export const placeOrder = async (userId, { addressId, paymentMethod, specialInst
         },
     });
 
-    // ─── Step 7: Clear cart from Redis ────────────────────────
+    // ─── Step 6: Clear cart from Redis ────────────────────────
     await clearCart(userId);
 
     return {
@@ -224,9 +219,15 @@ export const cancelOrder = async (userId, orderId, reason) => {
         },
     });
 
+    // If the order was already paid online, issue a refund and flip
+    // paymentStatus to REFUNDED. No-ops for COD / unpaid orders.
+    const { refunded } = await refundOrderPayment(order);
+
     return {
-        message: "Order cancelled successfully.",
-        order: updatedOrder,
+        message: refunded
+            ? "Order cancelled. Your refund has been initiated."
+            : "Order cancelled successfully.",
+        order: { ...updatedOrder, paymentStatus: refunded ? "REFUNDED" : updatedOrder.paymentStatus },
     };
 };
 

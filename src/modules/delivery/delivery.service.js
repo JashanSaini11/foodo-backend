@@ -5,7 +5,17 @@
 
 import { prisma } from "../../config/db.js";
 import { setCache, getCache, deleteCache } from "../../config/redis.js";
+import { notifyDeliveryOTP } from "../../config/socket.js";
 import Restaurant from "../restaurant/restaurant.model.js";
+
+// ─── HELPER: Generate 4-digit delivery OTP ────────────────────
+// Generated on ARRIVAL at the customer (not at dispatch), so its
+// short expiry window reflects the brief doorstep hand-off.
+const generateDeliveryOTP = () =>
+    Math.floor(1000 + Math.random() * 9000).toString();
+
+// How long the doorstep OTP stays valid once the partner arrives.
+const DELIVERY_OTP_TTL_MINUTES = 10;
 
 // ─── REGISTER AS DELIVERY PARTNER ────────────────────────────
 // User must have USER role first → then register as partner
@@ -241,7 +251,11 @@ export const acceptDelivery = async (userId, orderId) => {
         throw { statusCode: 404, message: "Order not found or already taken by another partner." };
     }
 
-    // Use transaction — create assignment + update order status together
+
+    // Use transaction — create assignment + update order status together.
+    // NOTE: the delivery OTP is NOT generated here. It is generated only
+    // when the partner reaches the customer's door (see arriveAtCustomer),
+    // so the short-lived OTP reflects the actual hand-off moment.
     const [assignment] = await prisma.$transaction([
         // Create delivery assignment
         prisma.deliveryAssignment.create({
@@ -265,6 +279,60 @@ export const acceptDelivery = async (userId, orderId) => {
     return {
         message: "Delivery accepted! Head to the restaurant for pickup.",
         assignment,
+    };
+};
+
+// ─── ARRIVE AT CUSTOMER (generate + send OTP) ─────────────────
+// Partner taps "I've arrived" at the customer's door. We generate a
+// fresh, short-lived OTP, store it on the order, and push it to the
+// customer in real-time. The customer reads it out; the partner then
+// submits it via POST /api/orders/:id/verify-otp to complete delivery.
+export const arriveAtCustomer = async (userId, orderId) => {
+    const partner = await prisma.deliveryPartner.findUnique({
+        where: { userId },
+        select: { id: true },
+    });
+
+    if (!partner) {
+        throw { statusCode: 404, message: "Partner profile not found." };
+    }
+
+    // The order must be out for delivery AND assigned to THIS partner.
+    const order = await prisma.order.findFirst({
+        where: {
+            id: orderId,
+            status: "OUT_FOR_DELIVERY",
+            delivery: { partnerId: partner.id, deliveredAt: null },
+        },
+        select: { id: true, userId: true },
+    });
+
+    if (!order) {
+        throw {
+            statusCode: 404,
+            message: "Active delivery not found for this order.",
+        };
+    }
+
+    // Generate a fresh doorstep OTP with a short expiry.
+    const deliveryOTP = generateDeliveryOTP();
+    const otpExpiresAt = new Date(
+        Date.now() + DELIVERY_OTP_TTL_MINUTES * 60 * 1000
+    );
+
+    await prisma.order.update({
+        where: { id: orderId },
+        data: { otp: deliveryOTP, otpExpiresAt },
+    });
+
+    // Push the OTP to the customer in real-time (they read it to the
+    // partner). The OTP is intentionally NOT returned to the partner.
+    notifyDeliveryOTP(order.userId, orderId, deliveryOTP);
+
+    return {
+        message:
+            "Customer has been sent the delivery OTP. Ask them to share it to complete the delivery.",
+        expiresInMinutes: DELIVERY_OTP_TTL_MINUTES,
     };
 };
 
